@@ -1,0 +1,154 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_BACKEND: ${{ github.repository }}/backend
+  IMAGE_FRONTEND: ${{ github.repository }}/frontend
+
+jobs:
+  # ── Backend: lint + test ─────────────────────────────────────────────────────
+  backend-test:
+    name: Backend — lint & test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: taskboard_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/taskboard
+          TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/taskboard_test
+          REDIS_URL: redis://localhost:6379/0
+          SECRET_KEY: ci-secret-key-not-for-production
+        run: pytest app/tests/ -v --tb=short
+
+  # ── Frontend: lint + build ───────────────────────────────────────────────────
+  frontend-build:
+    name: Frontend — lint & build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run build
+
+  # ── Build & push Docker images ───────────────────────────────────────────────
+  build-images:
+    name: Build & push images
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-build]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push backend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          target: runtime
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_BACKEND }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_FRONTEND }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ── Deploy to Render ─────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy to Render
+    runs-on: ubuntu-latest
+    needs: build-images
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Trigger Render deploy — backend
+        run: |
+          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_BACKEND }}" \
+            -H "Content-Type: application/json" \
+            --fail
+
+      - name: Trigger Render deploy — frontend
+        run: |
+          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_FRONTEND }}" \
+            -H "Content-Type: application/json" \
+            --fail
