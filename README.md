@@ -2,7 +2,8 @@
 
 Plateforme de gestion de tâches collaborative en temps réel, construite avec FastAPI, Vue 3 et PostgreSQL.
 
-> **[CAPTURE : page d'accueil du dashboard avec plusieurs projets affichés]**
+<img width="1918" height="971" alt="Capture d&#39;écran 2026-03-16 123232" src="https://github.com/user-attachments/assets/2162de6f-20c1-4733-a7e9-aabd71a0f9f5" />
+
 
 ---
 
@@ -17,16 +18,20 @@ Le projet couvre l'ensemble du cycle d'une application en production : authentif
 ## Captures d'écran
 
 ### Connexion
-> **[CAPTURE : page de login]**
+<img width="1910" height="970" alt="Capture d&#39;écran 2026-03-16 123121" src="https://github.com/user-attachments/assets/81e20072-fbd2-4a57-bb8f-265a8daf3e98" />
+
 
 ### Tableau de bord
-> **[CAPTURE : liste des projets sur le dashboard]**
+<img width="1918" height="971" alt="Capture d&#39;écran 2026-03-16 123232" src="https://github.com/user-attachments/assets/5068c850-7b73-430b-af95-2314540ad34d" />
+
 
 ### Tableau Kanban
-> **[CAPTURE : vue Kanban d'un projet avec des tâches dans plusieurs colonnes]**
+<img width="1898" height="968" alt="Capture d&#39;écran 2026-03-16 123313" src="https://github.com/user-attachments/assets/95d6e2b2-7321-411f-b8e1-53f42ceffb33" />
+
 
 ### Gestion des membres
-> **[CAPTURE : onglet Membres avec la liste et le formulaire d'invitation]**
+<img width="1902" height="910" alt="Capture d&#39;écran 2026-03-16 123349" src="https://github.com/user-attachments/assets/3d1babc6-dbcd-451f-b637-62e8b5351d4c" />
+
 
 ### Création de tâche
 > **[CAPTURE : modal de création de tâche ouvert avec les champs remplis]**
@@ -265,8 +270,4 @@ docker compose exec backend alembic revision --autogenerate -m "description"
 docker compose exec backend alembic upgrade head
 ```
 
----
 
-## Licence
-
-MIT
